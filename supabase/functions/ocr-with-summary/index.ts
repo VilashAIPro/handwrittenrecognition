@@ -28,17 +28,14 @@ serve(async (req) => {
 
     console.log(`Processing file: ${imageFile.name}, size: ${imageFile.size} bytes`);
 
-    // 1. First, extract text using Azure OCR (simulated for now)
-    // In a real implementation, you would call an OCR API here
+    // Convert file to arrayBuffer for processing
     const arrayBuffer = await imageFile.arrayBuffer();
     const imageBytes = new Uint8Array(arrayBuffer);
     
-    // Simulating OCR extraction
-    // For a real implementation, you would use a service like Azure Computer Vision, 
-    // Google Cloud Vision, or Tesseract.js through another edge function
-    console.log("Extracting text from image...");
+    console.log("Using OpenAI for OCR and text analysis...");
     
-    // 2. Use OpenAI to both extract text and generate a summary
+    // Use GPT-4o for both OCR and summary generation
+    // This works well for both printed and handwritten text
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -50,14 +47,14 @@ serve(async (req) => {
         messages: [
           {
             role: 'system', 
-            content: 'You are an expert OCR system. Extract all visible text from the image and then provide a concise summary of the content. Format your response with two sections: "EXTRACTED TEXT:" followed by all text you can read, and "SUMMARY:" followed by a brief summary of the content.'
+            content: 'You are an expert OCR system specialized in handwriting recognition. Extract all visible text from the image, even if it\'s handwritten, and then provide a concise summary of the content. Format your response with two sections: "EXTRACTED TEXT:" followed by all text you can read, and "SUMMARY:" followed by a brief summary of the content.'
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract all text from this image and provide a summary of its contents.'
+                text: 'Extract all text from this image (including handwriting) and provide a summary of its contents.'
               },
               {
                 type: 'image_url',
@@ -96,20 +93,23 @@ serve(async (req) => {
     }
 
     // Store in Supabase if authenticated
-    // Commented out for now, but could be implemented
-    /*
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const userId = req.headers.get('authorization')?.split('Bearer ')[1];
     
     if (userId) {
-      await supabase.from('ocr_history').insert({
-        user_id: userId,
-        extracted_text: extractedText,
-        summary: summary,
-        created_at: new Date().toISOString()
-      });
+      try {
+        await supabase.from('ocr_history').insert({
+          user_id: userId,
+          extracted_text: extractedText,
+          summary: summary,
+          created_at: new Date().toISOString()
+        });
+        console.log("Saved OCR result to database for user:", userId);
+      } catch (dbError) {
+        console.error("Failed to save to database:", dbError);
+        // Continue processing even if database save fails
+      }
     }
-    */
 
     return new Response(
       JSON.stringify({ 

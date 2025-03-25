@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClipboardIcon, CodeIcon, CheckIcon, DownloadIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from "@/components/ui/use-toast";
 
 interface OcrResultViewProps {
   text: string;
@@ -17,11 +20,33 @@ const OcrResultView: React.FC<OcrResultViewProps> = ({
   className 
 }) => {
   const [isCopied, setIsCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("text");
   
   const copyToClipboard = (content: string) => {
     navigator.clipboard.writeText(content);
     setIsCopied(true);
+    toast({
+      title: "Copied to clipboard",
+      description: "The content has been copied to your clipboard",
+    });
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const downloadAsText = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "File downloaded",
+      description: `${filename} has been downloaded`,
+    });
   };
   
   return (
@@ -32,34 +57,33 @@ const OcrResultView: React.FC<OcrResultViewProps> = ({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-medium">Analysis Results</h3>
         <div className="flex gap-2">
-          <button
-            onClick={() => copyToClipboard(text)}
-            disabled={isLoading || !text}
-            className={cn(
-              "p-2 rounded-md transition-colors",
-              isCopied 
-                ? "bg-green-500/10 text-green-600" 
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => copyToClipboard(activeTab === "text" ? text : summary)}
+            disabled={isLoading || (!text && activeTab === "text") || (!summary && activeTab === "summary")}
+            className="h-9 px-3"
           >
             {isCopied ? (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13.3337 5.33331L6.00033 12.6666L2.66699 9.33331" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <CheckIcon className="h-4 w-4 mr-2" />
             ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 4.66669V3.00002C4 2.44774 4.44772 2.00002 5 2.00002H12C12.5523 2.00002 13 2.44774 13 3.00002V10C13 10.5523 12.5523 11 12 11H10.3333M4 4.66669H11C11.5523 4.66669 12 5.1144 12 5.66669V12.6667C12 13.219 11.5523 13.6667 11 13.6667H4C3.44772 13.6667 3 13.219 3 12.6667V5.66669C3 5.1144 3.44772 4.66669 4 4.66669Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <ClipboardIcon className="h-4 w-4 mr-2" />
             )}
-          </button>
-          <button
-            disabled={isLoading || !text}
-            className="p-2 rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            Copy
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadAsText(
+              activeTab === "text" ? text : summary,
+              activeTab === "text" ? "extracted-text.txt" : "ai-summary.txt"
+            )}
+            disabled={isLoading || (!text && activeTab === "text") || (!summary && activeTab === "summary")}
+            className="h-9 px-3"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9.33366 10.6667L13.3337 8.00004L9.33366 5.33337M6.66699 5.33337L2.66699 8.00004L6.66699 10.6667" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+            <DownloadIcon className="h-4 w-4 mr-2" />
+            Download
+          </Button>
         </div>
       </div>
       
@@ -71,28 +95,32 @@ const OcrResultView: React.FC<OcrResultViewProps> = ({
           <div className="h-4 bg-muted rounded w-2/3"></div>
         </div>
       ) : (
-        <Tabs defaultValue="text" className="w-full">
+        <Tabs 
+          defaultValue="text" 
+          className="w-full"
+          onValueChange={(value) => setActiveTab(value)}
+        >
           <TabsList className="mb-4">
-            <TabsTrigger value="text">Extracted Text</TabsTrigger>
-            <TabsTrigger value="summary">AI Summary</TabsTrigger>
+            <TabsTrigger value="text">
+              <CodeIcon className="h-4 w-4 mr-2" />
+              Extracted Text
+            </TabsTrigger>
+            <TabsTrigger value="summary">
+              <ClipboardIcon className="h-4 w-4 mr-2" />
+              AI Summary
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="text" className="relative">
-            <textarea
-              value={text}
-              readOnly
-              className="w-full min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-              placeholder="Text will appear here after processing..."
-            />
+            <div className="min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground whitespace-pre-wrap overflow-auto">
+              {text ? text : "No text extracted. Try uploading a clearer image."}
+            </div>
           </TabsContent>
           
           <TabsContent value="summary" className="relative">
-            <textarea
-              value={summary}
-              readOnly
-              className="w-full min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-              placeholder="AI summary will appear here after processing..."
-            />
+            <div className="min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground whitespace-pre-wrap overflow-auto">
+              {summary ? summary : "No summary available. Try uploading a clearer image."}
+            </div>
           </TabsContent>
         </Tabs>
       )}

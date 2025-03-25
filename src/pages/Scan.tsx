@@ -6,17 +6,22 @@ import ImageUpload from '@/components/ImageUpload';
 import OcrResultView from '@/components/OcrResultView';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Scan = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState('');
   const [summary, setSummary] = useState('');
+  const [error, setError] = useState<string | null>(null);
   
   const handleImageSelected = async (file: File) => {
     try {
       setIsProcessing(true);
       setExtractedText('');
       setSummary('');
+      setError(null);
       
       const formData = new FormData();
       formData.append('image', file);
@@ -24,9 +29,6 @@ const Scan = () => {
       // Call the Supabase Edge Function for OCR and summarization
       const { data, error } = await supabase.functions.invoke('ocr-with-summary', {
         body: formData,
-        headers: {
-          // Don't set Content-Type here - it will be automatically set with the boundary
-        },
       });
       
       if (error) {
@@ -42,6 +44,8 @@ const Scan = () => {
       });
     } catch (error) {
       console.error('Error processing image:', error);
+      setError('Failed to process image. Please try again with a clearer image.');
+      
       toast({
         title: "Processing failed",
         description: "Failed to extract text from image. Please try again.",
@@ -73,26 +77,46 @@ For more information please contact us at example@textlens.com or visit our webs
       <main className="flex-grow mt-16 py-12">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">
-            <div className="animate-fade-in">
+            <div className="animate-fade-in mb-8">
               <h1 className="text-3xl font-semibold mb-2">Extract & Analyze Text</h1>
-              <p className="text-muted-foreground mb-8">
+              <p className="text-muted-foreground">
                 Upload an image to extract text and generate an AI summary using our advanced OCR technology.
+                Works with both handwritten and printed text.
               </p>
             </div>
             
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="animate-fade-in animation-delay-300">
-                <h2 className="text-lg font-medium mb-4">Upload Image</h2>
-                <ImageUpload onImageSelected={handleImageSelected} />
-                
-                <div className="mt-4 text-sm text-muted-foreground">
-                  <p>Supported formats: JPG, PNG, GIF</p>
-                  <p>Max file size: 5MB</p>
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Upload Image</CardTitle>
+                    <CardDescription>
+                      Upload a clear image containing text you want to extract
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ImageUpload 
+                      onImageSelected={handleImageSelected}
+                      isProcessing={isProcessing}
+                    />
+                    
+                    <div className="mt-4 text-sm text-muted-foreground">
+                      <p>Supported formats: JPG, PNG, GIF</p>
+                      <p>Max file size: 5MB</p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
               
               <div className="animate-fade-in animation-delay-600">
-                <h2 className="text-lg font-medium mb-4">Results</h2>
                 <OcrResultView 
                   text={extractedText} 
                   summary={summary}
