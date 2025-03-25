@@ -1,22 +1,25 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface OcrResultViewProps {
   text: string;
+  summary?: string;
   isLoading?: boolean;
   className?: string;
 }
 
 const OcrResultView: React.FC<OcrResultViewProps> = ({ 
   text, 
+  summary = '',
   isLoading = false,
   className 
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = (content: string) => {
+    navigator.clipboard.writeText(content);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
@@ -27,10 +30,10 @@ const OcrResultView: React.FC<OcrResultViewProps> = ({
       className
     )}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium">Extracted Text</h3>
+        <h3 className="text-lg font-medium">Analysis Results</h3>
         <div className="flex gap-2">
           <button
-            onClick={copyToClipboard}
+            onClick={() => copyToClipboard(text)}
             disabled={isLoading || !text}
             className={cn(
               "p-2 rounded-md transition-colors",
@@ -68,14 +71,30 @@ const OcrResultView: React.FC<OcrResultViewProps> = ({
           <div className="h-4 bg-muted rounded w-2/3"></div>
         </div>
       ) : (
-        <div className="relative">
-          <textarea
-            value={text}
-            readOnly
-            className="w-full min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Text will appear here after processing..."
-          />
-        </div>
+        <Tabs defaultValue="text" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="text">Extracted Text</TabsTrigger>
+            <TabsTrigger value="summary">AI Summary</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="text" className="relative">
+            <textarea
+              value={text}
+              readOnly
+              className="w-full min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="Text will appear here after processing..."
+            />
+          </TabsContent>
+          
+          <TabsContent value="summary" className="relative">
+            <textarea
+              value={summary}
+              readOnly
+              className="w-full min-h-[200px] p-4 rounded-lg bg-secondary/50 border border-border text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="AI summary will appear here after processing..."
+            />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

@@ -5,33 +5,40 @@ import Footer from '@/components/Footer';
 import ImageUpload from '@/components/ImageUpload';
 import OcrResultView from '@/components/OcrResultView';
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 const Scan = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState('');
+  const [summary, setSummary] = useState('');
   
   const handleImageSelected = async (file: File) => {
     try {
       setIsProcessing(true);
+      setExtractedText('');
+      setSummary('');
       
-      // Simulate API processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const formData = new FormData();
+      formData.append('image', file);
       
-      // In a real app, you would upload the image to an OCR service
-      // and get the result back. For now, we'll simulate it:
-      const mockText = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. 
-Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-
-• Item one with some details
-• Item two with other information
-• Item three with additional notes
-
-For more information please contact us at example@textlens.com or visit our website www.textlens.com.`;
+      // Call the Supabase Edge Function for OCR and summarization
+      const { data, error } = await supabase.functions.invoke('ocr-with-summary', {
+        body: formData,
+        headers: {
+          // Don't set Content-Type here - it will be automatically set with the boundary
+        },
+      });
       
-      setExtractedText(mockText);
+      if (error) {
+        throw new Error(`Error calling OCR function: ${error.message}`);
+      }
+      
+      setExtractedText(data.extractedText || '');
+      setSummary(data.summary || '');
+      
       toast({
-        title: "Text extracted successfully",
-        description: "The image has been processed and text extracted.",
+        title: "Processing complete",
+        description: "The image has been analyzed and text extracted.",
       });
     } catch (error) {
       console.error('Error processing image:', error);
@@ -40,6 +47,20 @@ For more information please contact us at example@textlens.com or visit our webs
         description: "Failed to extract text from image. Please try again.",
         variant: "destructive",
       });
+      
+      // Set fallback data for development/testing purposes
+      if (process.env.NODE_ENV === 'development') {
+        setExtractedText(`Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. 
+Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+
+• Item one with some details
+• Item two with other information
+• Item three with additional notes
+
+For more information please contact us at example@textlens.com or visit our website www.textlens.com.`);
+        
+        setSummary("This document contains a contact information section with three bullet points listing various items with their details. The document includes contact information for TextLens company via email and website.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -53,9 +74,9 @@ For more information please contact us at example@textlens.com or visit our webs
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">
             <div className="animate-fade-in">
-              <h1 className="text-3xl font-semibold mb-2">Extract Text</h1>
+              <h1 className="text-3xl font-semibold mb-2">Extract & Analyze Text</h1>
               <p className="text-muted-foreground mb-8">
-                Upload an image to extract text using our advanced OCR technology.
+                Upload an image to extract text and generate an AI summary using our advanced OCR technology.
               </p>
             </div>
             
@@ -71,9 +92,10 @@ For more information please contact us at example@textlens.com or visit our webs
               </div>
               
               <div className="animate-fade-in animation-delay-600">
-                <h2 className="text-lg font-medium mb-4">Result</h2>
+                <h2 className="text-lg font-medium mb-4">Results</h2>
                 <OcrResultView 
                   text={extractedText} 
+                  summary={summary}
                   isLoading={isProcessing} 
                 />
               </div>
